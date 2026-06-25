@@ -3,82 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Recipe Vault</title>
+    <title>Bushmans Cookbook</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Smooth transition for the expanding checklist */
+        /* Premium smooth transitions */
         .checklist-content {
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.3s ease-out;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+            opacity: 0;
         }
         .checklist-content.expanded {
-            max-height: 500px; /* Arbitrary large height to allow expansion */
+            max-height: 800px;
+            opacity: 1;
+        }
+        /* Hide scrollbar for a cleaner app look */
+        ::-webkit-scrollbar { display: none; }
+        
+        /* Custom Checkbox Styling */
+        input[type="checkbox"] {
+            accent-color: #059669; /* Emerald 600 */
+            width: 1.5rem;
+            height: 1.5rem;
+            cursor: pointer;
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans h-screen flex justify-center">
+<body class="bg-gray-100 text-gray-800 font-sans h-screen flex justify-center selection:bg-emerald-200">
 
-    <div class="w-full max-w-md bg-white h-full shadow-2xl flex flex-col relative overflow-hidden">
+    <div class="w-full max-w-md bg-gray-50 h-full shadow-2xl flex flex-col relative overflow-hidden sm:rounded-2xl sm:h-[95vh] sm:mt-5 border border-gray-200">
         
-        <header class="bg-indigo-600 text-white p-4 shadow-md flex justify-between items-center z-10">
-            <button id="backBtn" class="hidden text-white hover:bg-indigo-500 p-2 rounded-lg font-bold" onclick="showListView()">
+        <header class="bg-gradient-to-r from-emerald-800 to-emerald-600 text-white p-5 shadow-lg flex justify-between items-center z-10">
+            <button id="backBtn" class="hidden text-emerald-50 hover:bg-white/20 px-3 py-1.5 rounded-lg font-medium transition-colors" onclick="showListView()">
                 ← Back
             </button>
-            <h1 class="text-xl font-bold tracking-wide" id="appTitle">My Recipes</h1>
-            <div class="w-8"></div> </header>
+            <h1 class="text-2xl font-extrabold tracking-wide drop-shadow-sm" id="appTitle">Bushmans Cookbook</h1>
+            <div class="w-12" id="spacer"></div> </header>
 
-        <main id="listView" class="flex-1 overflow-y-auto p-4 bg-gray-50">
-            <p class="text-sm text-gray-500 mb-4 font-semibold uppercase tracking-wider">Tap a recipe to cook</p>
-            <div id="recipeCards" class="flex flex-col space-y-3">
+        <main id="listView" class="flex-1 overflow-y-auto p-5">
+            <p class="text-xs text-emerald-700 mb-5 font-bold uppercase tracking-widest">Your Vault</p>
+            <div id="recipeCards" class="flex flex-col space-y-4">
                 </div>
         </main>
 
-        <main id="recipeView" class="hidden flex-1 overflow-y-auto p-5 bg-white pb-20">
+        <main id="recipeView" class="hidden flex-1 overflow-y-auto bg-white">
             </main>
 
     </div>
 
     <script>
-        // THIS IS HOW YOUR INDIVIDUAL GITHUB FILES WILL BE STRUCTURED LATER
-        const recipes = [
-            {
-                id: "creamy-chicken-pasta",
-                title: "Creamy Chicken Pasta",
-                tags: ["Chicken", "Pasta", "Dinner", "30 Mins"],
-                ingredients: [
-                    "2 Chicken Breasts", 
-                    "500g Penne Pasta", 
-                    "1 Cup Thick Cream", 
-                    "Garlic Powder", 
-                    "Parmesan Cheese"
-                ],
-                instructions: [
-                    "Boil water and cook the penne pasta until al dente.",
-                    "Dice the chicken breasts and pan-fry with olive oil and garlic powder.",
-                    "Pour in the thick cream and let it simmer for 5 minutes.",
-                    "Mix in the drained pasta and top heavily with parmesan cheese."
-                ]
-            },
-            {
-                id: "honey-soy-beef",
-                title: "Honey Soy Beef Stir-fry",
-                tags: ["Beef", "Quick", "Asian-Inspired"],
-                ingredients: [
-                    "500g Beef Strips", 
-                    "Broccoli", 
-                    "Soy Sauce", 
-                    "Honey", 
-                    "Microwave Rice"
-                ],
-                instructions: [
-                    "Mix equal parts soy sauce and honey in a small bowl.",
-                    "Flash fry the beef strips in a hot wok until browned.",
-                    "Toss in the chopped broccoli and pour over the sauce.",
-                    "Serve immediately over heated microwave rice."
-                ]
-            }
-        ];
+        // Start with an empty vault
+        let recipes = []; 
+
+        // 7 Days in Milliseconds for the Expiry logic
+        const EXPIRY_TIME_MS = 7 * 24 * 60 * 60 * 1000;
+
+        // YOUR GITHUB DETAILS HERE
+        const GITHUB_USERNAME = "bushmann24"; 
+        const GITHUB_REPO = "bushmans-cookbook";
 
         // DOM Elements
         const listView = document.getElementById('listView');
@@ -86,104 +68,157 @@
         const backBtn = document.getElementById('backBtn');
         const appTitle = document.getElementById('appTitle');
         const recipeCards = document.getElementById('recipeCards');
+        const spacer = document.getElementById('spacer');
 
-        // Render the Home Screen List
+        // UPGRADED: Function to dynamically fetch the folder contents via GitHub API
+        async function loadRecipesFromFolder() {
+            try {
+                // 1. Ask the GitHub API what is inside your /recipes folder
+                const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/recipes`;
+                const folderResponse = await fetch(apiUrl);
+                
+                if (!folderResponse.ok) throw new Error("Could not read GitHub folder.");
+                
+                const folderContents = await folderResponse.json();
+
+                // 2. Filter for only .json files and fetch their direct download links
+                for (const file of folderContents) {
+                    if (file.name.endsWith('.json')) {
+                        const res = await fetch(file.download_url);
+                        const recipeData = await res.json();
+                        recipes.push(recipeData);
+                    }
+                }
+
+                // 3. Render the screen!
+                renderList();
+            } catch (error) {
+                console.error("Error loading recipes:", error);
+                recipeCards.innerHTML = `
+                    <div class="bg-red-50 p-4 rounded-xl border border-red-200 text-red-700">
+                        <p class="font-bold mb-2">⚠️ Could not load recipes.</p>
+                        <p class="text-sm">Make sure your repository is public and that your recipes are formatted correctly!</p>
+                    </div>`;
+            }
+        }
+
         function renderList() {
             recipeCards.innerHTML = '';
             recipes.forEach(recipe => {
-                // Create pill badges for tags
                 const tagPills = recipe.tags.map(tag => 
-                    `<span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2 py-1 rounded-full">${tag}</span>`
+                    `<span class="bg-emerald-50 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-md border border-emerald-100">${tag}</span>`
                 ).join(' ');
 
                 const card = document.createElement('div');
-                card.className = "bg-white border border-gray-200 p-4 rounded-xl shadow-sm active:scale-95 transition-transform cursor-pointer";
+                card.className = "bg-white border border-gray-100 p-5 rounded-2xl shadow-sm hover:shadow-md active:scale-[0.98] transition-all cursor-pointer";
                 card.onclick = () => showRecipe(recipe);
                 card.innerHTML = `
-                    <h2 class="text-lg font-bold text-gray-900 mb-2">${recipe.title}</h2>
-                    <div class="flex flex-wrap gap-1">${tagPills}</div>
+                    <h2 class="text-xl font-extrabold text-gray-800 mb-3">${recipe.title}</h2>
+                    <div class="flex flex-wrap gap-2">${tagPills}</div>
                 `;
                 recipeCards.appendChild(card);
             });
         }
 
-        // Render the Single Recipe Screen
         function showRecipe(recipe) {
             listView.classList.add('hidden');
             recipeView.classList.remove('hidden');
             backBtn.classList.remove('hidden');
+            spacer.classList.add('hidden');
             appTitle.innerText = "Cooking Mode";
 
-            // Format Instructions
+            // Load saved checklist data
+            let savedChecks = [];
+            const savedData = localStorage.getItem(`bushmans_${recipe.id}`);
+            if (savedData) {
+                const parsed = JSON.parse(savedData);
+                // Check if it has been longer than 7 days
+                if (Date.now() - parsed.timestamp > EXPIRY_TIME_MS) {
+                    localStorage.removeItem(`bushmans_${recipe.id}`); // Wipe it!
+                } else {
+                    savedChecks = parsed.checkedItems;
+                }
+            }
+
             const stepHtml = recipe.instructions.map((step, idx) => `
-                <li class="mb-3 flex text-gray-700 leading-relaxed">
-                    <span class="font-bold text-indigo-500 mr-3">${idx + 1}.</span>
+                <li class="mb-4 flex text-gray-700 text-lg leading-relaxed">
+                    <span class="font-extrabold text-emerald-600 mr-4">${idx + 1}.</span>
                     <span>${step}</span>
                 </li>
             `).join('');
 
-            // Format Interactive Checklist
-            const checkHtml = recipe.ingredients.map((ing, idx) => `
-                <label class="flex items-center space-x-3 p-3 hover:bg-gray-50 border-b border-gray-100 cursor-pointer">
-                    <input type="checkbox" class="w-6 h-6 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
-                    <span class="text-gray-700 text-lg">${ing}</span>
+            const checkHtml = recipe.ingredients.map((ing, idx) => {
+                const isChecked = savedChecks.includes(idx) ? 'checked' : '';
+                const textStyle = isChecked ? 'text-gray-400 line-through' : 'text-gray-800';
+                
+                return `
+                <label class="flex items-center space-x-4 p-4 hover:bg-gray-50 border-b border-gray-100 cursor-pointer transition-colors">
+                    <input type="checkbox" onchange="saveChecklist('${recipe.id}')" data-idx="${idx}" ${isChecked} class="ingredient-cb rounded-md border-gray-300">
+                    <span class="text-lg font-medium select-none ${textStyle}" id="label-${recipe.id}-${idx}">${ing}</span>
                 </label>
-            `).join('');
+            `}).join('');
 
-            // Format Tags for the bottom
-            const bottomTags = recipe.tags.map(tag => 
-                `<span class="bg-gray-100 text-gray-600 text-sm font-medium px-3 py-1.5 rounded-md border border-gray-200">${tag}</span>`
-            ).join(' ');
-
-            // Inject the layout exactly as you requested
             recipeView.innerHTML = `
-                <h2 class="text-3xl font-extrabold text-gray-900 mb-6">${recipe.title}</h2>
+                <div class="p-6">
+                    <h2 class="text-3xl font-black text-gray-900 mb-8 leading-tight">${recipe.title}</h2>
 
-                <div class="mb-8">
-                    <h3 class="text-xl font-bold text-gray-800 mb-3 border-b pb-2">Ingredients</h3>
-                    <ul class="list-disc pl-5 text-gray-700 space-y-1">
-                        ${recipe.ingredients.map(i => `<li>${i}</li>`).join('')}
-                    </ul>
-                </div>
-
-                <div class="mb-10">
-                    <h3 class="text-xl font-bold text-gray-800 mb-3 border-b pb-2">Instructions</h3>
-                    <ul class="list-none pl-0">
-                        ${stepHtml}
-                    </ul>
-                </div>
-
-                <div class="mb-10 bg-indigo-50 rounded-xl border border-indigo-100 overflow-hidden shadow-sm">
-                    <button onclick="toggleChecklist()" class="w-full p-4 flex justify-between items-center bg-indigo-100 text-indigo-900 font-bold text-lg focus:outline-none">
-                        <span>🛒 Ingredient Checklist</span>
-                        <span id="expandIcon" class="text-2xl transition-transform duration-200">+</span>
-                    </button>
-                    <div id="checklistContent" class="checklist-content bg-white">
-                        <div class="p-2 flex flex-col">
-                            <p class="text-xs text-center text-gray-500 py-2 uppercase font-bold tracking-wide">Check off what you have!</p>
-                            ${checkHtml}
+                    <div class="mb-10 bg-emerald-50 rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
+                        <button onclick="toggleChecklist()" class="w-full p-5 flex justify-between items-center bg-emerald-100/50 hover:bg-emerald-100 text-emerald-900 font-extrabold text-lg transition-colors">
+                            <span class="flex items-center"><span class="mr-3 text-2xl">🛒</span> Ingredient Checklist</span>
+                            <span id="expandIcon" class="text-2xl transform transition-transform duration-300">+</span>
+                        </button>
+                        <div id="checklistContent" class="checklist-content bg-white">
+                            <div class="flex flex-col pb-2">
+                                ${checkHtml}
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div>
-                    <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Tags Applied</h3>
-                    <div class="flex flex-wrap gap-2">
-                        ${bottomTags}
+                    <div class="mb-10">
+                        <h3 class="text-xl font-black text-gray-900 mb-5 tracking-tight border-b-2 border-emerald-100 pb-2">Method</h3>
+                        <ul class="list-none pl-0">
+                            ${stepHtml}
+                        </ul>
                     </div>
                 </div>
             `;
         }
 
-        // Handle navigation back to list
+        // Logic to save checklist to local storage
+        function saveChecklist(recipeId) {
+            const checkboxes = document.querySelectorAll('.ingredient-cb');
+            const checkedIndexes = [];
+            
+            checkboxes.forEach(cb => {
+                const idx = cb.getAttribute('data-idx');
+                const label = document.getElementById(`label-${recipeId}-${idx}`);
+                
+                if (cb.checked) {
+                    checkedIndexes.push(parseInt(idx));
+                    label.classList.add('text-gray-400', 'line-through');
+                    label.classList.remove('text-gray-800');
+                } else {
+                    label.classList.remove('text-gray-400', 'line-through');
+                    label.classList.add('text-gray-800');
+                }
+            });
+
+            // Save array and exact time to local storage
+            const dataToSave = {
+                checkedItems: checkedIndexes,
+                timestamp: Date.now()
+            };
+            localStorage.setItem(`bushmans_${recipeId}`, JSON.stringify(dataToSave));
+        }
+
         function showListView() {
             recipeView.classList.add('hidden');
             listView.classList.remove('hidden');
             backBtn.classList.add('hidden');
-            appTitle.innerText = "My Recipes";
+            spacer.classList.remove('hidden');
+            appTitle.innerText = "Bushmans Cookbook";
         }
 
-        // Handle the expanding checklist animation
         function toggleChecklist() {
             const content = document.getElementById('checklistContent');
             const icon = document.getElementById('expandIcon');
@@ -193,12 +228,12 @@
                 icon.style.transform = 'rotate(0deg)';
             } else {
                 content.classList.add('expanded');
-                icon.style.transform = 'rotate(45deg)'; // Turns the + into an x
+                icon.style.transform = 'rotate(45deg)';
             }
         }
 
-        // Initialize App
-        renderList();
+        // Boot up by fetching the files!
+        loadRecipesFromFolder();
     </script>
 </body>
 </html>
