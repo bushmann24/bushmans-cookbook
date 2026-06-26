@@ -6,15 +6,12 @@
     <title>Bushmans Cookbook</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Smooth, un-clipped accordion transition */
         .checklist-content {
             max-height: 0;
             overflow: hidden;
             transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .checklist-content.expanded {
-            max-height: 4000px; /* Massive headroom so long ingredient lists never clip */
-        }
+        .checklist-content.expanded { max-height: 4000px; }
         ::-webkit-scrollbar { display: none; }
         
         input[type="checkbox"] {
@@ -27,37 +24,57 @@
 </head>
 <body class="bg-zinc-100 text-zinc-800 font-sans h-screen flex justify-center selection:bg-emerald-200">
 
-    <!-- Mobile App Frame -->
     <div class="w-full max-w-md bg-white h-full shadow-2xl flex flex-col relative overflow-hidden sm:rounded-[2rem] sm:h-[94vh] sm:mt-6 border border-zinc-200/80">
         
-        <!-- Premium Static Header -->
-        <header class="bg-gradient-to-b from-emerald-900 to-emerald-800 text-white px-5 py-4 shadow-md flex justify-between items-center z-10 border-b border-emerald-700/50">
+        <header class="bg-gradient-to-b from-emerald-900 to-emerald-800 text-white px-5 py-4 shadow-md flex justify-between items-center z-20 border-b border-emerald-700/50 flex-shrink-0">
             <button id="backBtn" class="hidden bg-emerald-950/40 hover:bg-emerald-950/70 border border-emerald-600/40 text-emerald-100 px-3.5 py-1.5 rounded-xl text-xs font-bold tracking-wider uppercase transition-all active:scale-95" onclick="showListView()">
                 Back
             </button>
             <h1 class="text-xl font-black tracking-tight text-center flex-1 drop-shadow-sm">Bushmans Cookbook</h1>
-            <div id="rightSpacer" class="hidden w-[53px]"></div> <!-- Counter-balances the Back button width for dead-center title -->
+            <div id="rightSpacer" class="hidden w-[53px]"></div>
         </header>
 
-        <!-- View 1: Vault List -->
-        <main id="listView" class="flex-1 overflow-y-auto p-5 bg-zinc-50/50">
-            <div class="flex justify-between items-baseline mb-4 px-1">
-                <span class="text-[11px] font-black tracking-widest uppercase text-zinc-400">Saved Recipes</span>
-                <span class="text-[11px] font-bold text-emerald-700" id="recipeCount">Syncing...</span>
+        <main id="listView" class="flex-1 overflow-y-auto bg-zinc-50/50 flex flex-col">
+            
+            <div class="sticky top-0 bg-white/95 backdrop-blur-md z-10 px-5 pt-4 pb-3 border-b border-zinc-200/60 shadow-xs">
+                <div class="flex gap-2">
+                    <div class="relative flex-1">
+                        <input type="text" id="searchInput" oninput="renderList()" placeholder="Search dishes or ingredients..." class="w-full bg-zinc-100/80 border border-zinc-200/80 rounded-xl px-3.5 py-2.5 text-sm font-medium text-zinc-800 placeholder-zinc-400 focus:outline-none focus:bg-white focus:border-emerald-600 transition-all">
+                    </div>
+                    <button onclick="toggleFilterDrawer()" id="filterToggleBtn" class="bg-zinc-100/80 border border-zinc-200/80 hover:bg-zinc-200 text-zinc-700 px-4 rounded-xl flex items-center justify-center font-bold text-xs tracking-wider uppercase active:scale-95 transition-all">
+                        Filters <span id="filterActiveDot" class="hidden ml-1.5 w-2 h-2 rounded-full bg-emerald-600"></span>
+                    </button>
+                </div>
+
+                <div id="filterDrawer" class="hidden pt-3 mt-3 border-t border-zinc-100 transition-all">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-[10px] font-black uppercase tracking-wider text-zinc-400">Match Tags</span>
+                        <button onclick="resetFilters()" class="text-[11px] font-bold text-emerald-700 hover:underline">Clear All</button>
+                    </div>
+                    <div id="tagContainer" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto py-1">
+                        </div>
+                </div>
             </div>
-            <div id="recipeCards" class="flex flex-col space-y-3.5"></div>
+
+            <div class="p-5 flex-1">
+                <div class="flex justify-between items-baseline mb-3 px-1">
+                    <span class="text-[11px] font-black tracking-widest uppercase text-zinc-400" id="listHeading">All Recipes</span>
+                    <span class="text-[11px] font-bold text-emerald-700" id="recipeCount">Syncing...</span>
+                </div>
+                <div id="recipeCards" class="flex flex-col space-y-3.5 pb-8"></div>
+            </div>
+
         </main>
 
-        <!-- View 2: Recipe Reader -->
         <main id="recipeView" class="hidden flex-1 overflow-y-auto bg-white"></main>
 
     </div>
 
     <script>
         let recipes = []; 
+        let activeTags = [];
         const EXPIRY_TIME_MS = 7 * 24 * 60 * 60 * 1000;
 
-        // PRE-LINKED TO YOUR GITHUB REPO
         const GITHUB_USERNAME = "bushmann24"; 
         const GITHUB_REPO = "bushmans-cookbook";
 
@@ -73,7 +90,7 @@
                 const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/recipes`;
                 const folderResponse = await fetch(apiUrl);
                 
-                if (!folderResponse.ok) throw new Error("GitHub API unreachable");
+                if (!folderResponse.ok) throw new Error();
                 const folderContents = await folderResponse.json();
 
                 for (const file of folderContents) {
@@ -83,33 +100,108 @@
                         recipes.push(recipeData);
                     }
                 }
+                buildFilterTray();
                 renderList();
             } catch (error) {
-                console.error(error);
                 recipeCount.innerText = "Offline";
-                recipeCards.innerHTML = `
-                    <div class="bg-amber-50 p-4 rounded-2xl border border-amber-200 text-amber-900 text-sm">
-                        <p class="font-bold mb-1">Could not reach GitHub</p>
-                        <p class="text-xs text-amber-700">Ensure your repo is set to Public so the app can fetch your files.</p>
-                    </div>`;
+                recipeCards.innerHTML = `<div class="bg-amber-50 p-4 rounded-2xl border border-amber-200 text-amber-900 text-xs font-medium">Could not reach GitHub repository.</div>`;
             }
+        }
+
+        function buildFilterTray() {
+            const container = document.getElementById('tagContainer');
+            container.innerHTML = '';
+            
+            // Collect every unique tag in the repo
+            const allUniqueTags = [...new Set(recipes.flatMap(r => r.tags || []))].sort();
+
+            allUniqueTags.forEach(tag => {
+                const btn = document.createElement('button');
+                btn.onclick = () => toggleTag(tag);
+                btn.id = `tag-${tag}`;
+                btn.className = "text-[11px] font-bold px-3 py-1.5 rounded-lg border transition-all select-none bg-zinc-100 text-zinc-600 border-zinc-200/80";
+                btn.innerText = tag;
+                container.appendChild(btn);
+            });
+        }
+
+        function toggleTag(tag) {
+            if (activeTags.includes(tag)) {
+                activeTags = activeTags.filter(t => t !== tag);
+            } else {
+                activeTags.push(tag);
+            }
+            updateFilterUI();
+            renderList();
+        }
+
+        function updateFilterUI() {
+            const dot = document.getElementById('filterActiveDot');
+            if (activeTags.length > 0) {
+                dot.classList.remove('hidden');
+            } else {
+                dot.classList.add('hidden');
+            }
+
+            // Style selected buttons
+            activeTags.forEach(t => {
+                const el = document.getElementById(`tag-${t}`);
+                if(el) el.className = "text-[11px] font-extrabold px-3 py-1.5 rounded-lg border transition-all select-none bg-emerald-800 text-white border-emerald-900 shadow-xs";
+            });
+
+            // Style unselected buttons
+            const allUniqueTags = [...new Set(recipes.flatMap(r => r.tags || []))];
+            allUniqueTags.filter(t => !activeTags.includes(t)).forEach(t => {
+                const el = document.getElementById(`tag-${t}`);
+                if(el) el.className = "text-[11px] font-bold px-3 py-1.5 rounded-lg border transition-all select-none bg-zinc-100 text-zinc-600 border-zinc-200/80 hover:bg-zinc-200/60";
+            });
+        }
+
+        function resetFilters() {
+            activeTags = [];
+            document.getElementById('searchInput').value = '';
+            updateFilterUI();
+            renderList();
+        }
+
+        function toggleFilterDrawer() {
+            const drawer = document.getElementById('filterDrawer');
+            drawer.classList.toggle('hidden');
         }
 
         function renderList() {
             recipeCards.innerHTML = '';
-            recipeCount.innerText = `${recipes.length} Dishes`;
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
 
-            recipes.forEach(recipe => {
+            const filtered = recipes.filter(r => {
+                const matchesText = query === '' || 
+                                    r.title.toLowerCase().includes(query) || 
+                                    r.ingredients.some(i => i.toLowerCase().includes(query));
+
+                const matchesTags = activeTags.length === 0 || 
+                                    activeTags.every(t => (r.tags || []).includes(t));
+
+                return matchesText && matchesTags;
+            });
+
+            recipeCount.innerText = `${filtered.length} Dishes`;
+
+            if (filtered.length === 0) {
+                recipeCards.innerHTML = `<div class="text-center py-10 text-zinc-400 text-sm font-medium">No meals found matching those filters.</div>`;
+                return;
+            }
+
+            filtered.forEach(recipe => {
                 const tagPills = recipe.tags.map(tag => 
-                    `<span class="bg-zinc-100 text-zinc-600 font-semibold text-[11px] px-2.5 py-1 rounded-md">${tag}</span>`
+                    `<span class="bg-zinc-100 text-zinc-600 font-semibold text-[10px] px-2 py-0.5 rounded border border-zinc-200/60">${tag}</span>`
                 ).join('');
 
                 const card = document.createElement('div');
-                card.className = "bg-white border border-zinc-200/70 p-5 rounded-2xl shadow-sm hover:border-emerald-500/40 active:scale-[0.98] transition-all cursor-pointer";
+                card.className = "bg-white border border-zinc-200/70 p-5 rounded-2xl shadow-xs hover:border-emerald-500/40 active:scale-[0.98] transition-all cursor-pointer";
                 card.onclick = () => showRecipe(recipe);
                 card.innerHTML = `
-                    <h2 class="text-lg font-extrabold text-zinc-900 mb-2.5 leading-snug">${recipe.title}</h2>
-                    <div class="flex flex-wrap gap-1.5">${tagPills}</div>
+                    <h2 class="text-lg font-extrabold text-zinc-900 mb-2 leading-snug">${recipe.title}</h2>
+                    <div class="flex flex-wrap gap-1">${tagPills}</div>
                 `;
                 recipeCards.appendChild(card);
             });
@@ -120,9 +212,8 @@
             recipeView.classList.remove('hidden');
             backBtn.classList.remove('hidden');
             rightSpacer.classList.remove('hidden');
-            recipeView.scrollTop = 0; // Snap to top
+            recipeView.scrollTop = 0;
 
-            // Check 7-day memory
             let savedChecks = [];
             const savedData = localStorage.getItem(`bushmans_${recipe.id}`);
             if (savedData) {
@@ -134,12 +225,10 @@
                 }
             }
 
-            // 1. Plain text Ingredients
             const plainIngHtml = recipe.ingredients.map(i => 
                 `<li class="text-zinc-700 text-sm py-1 border-b border-zinc-100 last:border-none leading-relaxed">${i}</li>`
             ).join('');
 
-            // 2. Method Steps
             const stepHtml = recipe.instructions.map((step, idx) => `
                 <div class="flex items-start mb-5 leading-relaxed">
                     <span class="flex-shrink-0 bg-emerald-100 text-emerald-900 font-black text-xs w-6 h-6 rounded-lg flex items-center justify-center mr-3 mt-0.5">${idx + 1}</span>
@@ -147,7 +236,6 @@
                 </div>
             `).join('');
 
-            // 3. Interactive Checklist
             const checkHtml = recipe.ingredients.map((ing, idx) => {
                 const isChecked = savedChecks.includes(idx) ? 'checked' : '';
                 const textStyle = isChecked ? 'text-zinc-300 line-through' : 'text-zinc-700 font-medium';
@@ -159,33 +247,24 @@
                 </label>
             `}).join('');
 
-            // 4. Tags Applied
             const tagsHtml = recipe.tags.map(t => 
                 `<span class="bg-zinc-100 text-zinc-500 font-bold text-[10px] tracking-wider uppercase px-2.5 py-1 rounded border border-zinc-200/60">${t}</span>`
             ).join('');
 
             recipeView.innerHTML = `
                 <div class="p-6 pb-16 max-w-lg mx-auto">
-                    
                     <h2 class="text-2xl sm:text-3xl font-black text-zinc-900 tracking-tight mb-6">${recipe.title}</h2>
 
-                    <!-- Block 1: Standard Ingredients List -->
                     <div class="mb-8 bg-zinc-50 border border-zinc-200/60 rounded-2xl p-5 shadow-inner">
                         <h3 class="text-[11px] font-black tracking-widest uppercase text-emerald-800 mb-3">Ingredients</h3>
-                        <ul class="list-none pl-0">
-                            ${plainIngHtml}
-                        </ul>
+                        <ul class="list-none pl-0">${plainIngHtml}</ul>
                     </div>
 
-                    <!-- Block 2: Method -->
                     <div class="mb-10">
                         <h3 class="text-[11px] font-black tracking-widest uppercase text-zinc-400 mb-5 border-b border-zinc-100 pb-2">Method</h3>
-                        <div class="flex flex-col">
-                            ${stepHtml}
-                        </div>
+                        <div class="flex flex-col">${stepHtml}</div>
                     </div>
 
-                    <!-- Block 3: Expandable Checklist Tool -->
                     <div class="mb-10 rounded-2xl border border-emerald-900/10 shadow-lg overflow-hidden bg-white">
                         <button onclick="toggleChecklist()" class="w-full p-4 bg-emerald-900 hover:bg-emerald-850 text-white flex justify-between items-center transition-colors">
                             <span class="font-extrabold text-sm tracking-wide flex items-center">
@@ -194,20 +273,14 @@
                             <span id="expandIcon" class="text-xl font-light transform transition-transform duration-300">+</span>
                         </button>
                         <div id="checklistContent" class="checklist-content">
-                            <div class="flex flex-col border-t border-zinc-100">
-                                ${checkHtml}
-                            </div>
+                            <div class="flex flex-col border-t border-zinc-100">${checkHtml}</div>
                         </div>
                     </div>
 
-                    <!-- Block 4: Filters Footer -->
                     <div class="pt-6 border-t border-zinc-100">
                         <span class="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2.5">Tagged Under</span>
-                        <div class="flex flex-wrap gap-1.5">
-                            ${tagsHtml}
-                        </div>
+                        <div class="flex flex-wrap gap-1.5">${tagsHtml}</div>
                     </div>
-
                 </div>
             `;
         }
@@ -215,11 +288,9 @@
         function saveChecklist(recipeId) {
             const checkboxes = document.querySelectorAll('.ingredient-cb');
             const checkedIndexes = [];
-            
             checkboxes.forEach(cb => {
                 const idx = cb.getAttribute('data-idx');
                 const label = document.getElementById(`lbl-${recipeId}-${idx}`);
-                
                 if (cb.checked) {
                     checkedIndexes.push(parseInt(idx));
                     label.className = "text-sm text-zinc-300 line-through transition-all";
@@ -227,11 +298,7 @@
                     label.className = "text-sm text-zinc-700 font-medium transition-all";
                 }
             });
-
-            localStorage.setItem(`bushmans_${recipeId}`, JSON.stringify({
-                checkedItems: checkedIndexes,
-                timestamp: Date.now()
-            }));
+            localStorage.setItem(`bushmans_${recipeId}`, JSON.stringify({ checkedItems: checkedIndexes, timestamp: Date.now() }));
         }
 
         function showListView() {
@@ -244,14 +311,8 @@
         function toggleChecklist() {
             const content = document.getElementById('checklistContent');
             const icon = document.getElementById('expandIcon');
-            
-            if (content.classList.contains('expanded')) {
-                content.classList.remove('expanded');
-                icon.style.transform = 'rotate(0deg)';
-            } else {
-                content.classList.add('expanded');
-                icon.style.transform = 'rotate(45deg)';
-            }
+            content.classList.toggle('expanded');
+            icon.style.transform = content.classList.contains('expanded') ? 'rotate(45deg)' : 'rotate(0deg)';
         }
 
         loadRecipesFromFolder();
