@@ -1,0 +1,51 @@
+{
+    "id": "tomato-soup",
+    "title": "Tomato Soup",
+    "tags": [
+        "Tomato",
+        "Soup",
+        "Vegetarian",
+        "Basil",
+        "Cream"
+    ],
+    "ingredients": [
+        "12 tomatoes",
+        "2 large onions",
+        "2 full garlic heads",
+        "Olive oil",
+        "Balsamic vinegar",
+        "Salt",
+        "Pepper",
+        "Smoked paprika",
+        "1 cup of vegestock",
+        "Handful of basil",
+        "Thyme",
+        "Oregano",
+        "Chilli flakes",
+        "300ml thickened cream",
+        "Parmesan"
+    ],
+    "instructions": [
+        "Quarter the tomatoes.",
+        "Quarter the onions.",
+        "Spread across a lined tray.",
+        "Place the 2 heads of garlic on the tray, with the tops cut off.",
+        "Put some basil stems on the tray.",
+        "Cover in olive oil.",
+        "Cover with a little bit of balsamic vinegar.",
+        "Season with salt and pepper.",
+        "Add smoked paprika.",
+        "Roast in the oven at 200°C for 40 minutes or until roasted.",
+        "Put the roasted vegetables into a blender, doing this in sections if your blender isn't big enough.",
+        "Add 1 cup of vegetable stock.",
+        "Add a handful of basil.",
+        "Add thyme.",
+        "Add oregano.",
+        "Add chilli flakes.",
+        "Blend into a nice thick soup.",
+        "Transfer to a pot on the stove over medium heat, wait until hot, and simmer with 300ml thickened cream.",
+        "Stir in a little bit of parmesan.",
+        "Simmer for a bit.",
+        "Serve."
+    ]
+}
