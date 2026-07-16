@@ -112,7 +112,6 @@
             const container = document.getElementById('tagContainer');
             container.innerHTML = '';
             
-            // Collect every unique tag in the repo
             const allUniqueTags = [...new Set(recipes.flatMap(r => r.tags || []))].sort();
 
             allUniqueTags.forEach(tag => {
@@ -143,13 +142,11 @@
                 dot.classList.add('hidden');
             }
 
-            // Style selected buttons
             activeTags.forEach(t => {
                 const el = document.getElementById(`tag-${t}`);
                 if(el) el.className = "text-[11px] font-extrabold px-3 py-1.5 rounded-lg border transition-all select-none bg-emerald-800 text-white border-emerald-900 shadow-xs";
             });
 
-            // Style unselected buttons
             const allUniqueTags = [...new Set(recipes.flatMap(r => r.tags || []))];
             allUniqueTags.filter(t => !activeTags.includes(t)).forEach(t => {
                 const el = document.getElementById(`tag-${t}`);
@@ -253,7 +250,9 @@
 
             recipeView.innerHTML = `
                 <div class="p-6 pb-16 max-w-lg mx-auto">
-                    <h2 class="text-2xl sm:text-3xl font-black text-zinc-900 tracking-tight mb-6">${recipe.title}</h2>
+                    <h2 class="text-2xl sm:text-3xl font-black text-zinc-900 tracking-tight mb-4">${recipe.title}</h2>
+
+                    <img src="images/${recipe.id}.webp" onerror="this.style.display='none'" class="w-full h-48 sm:h-64 object-cover rounded-2xl mb-8 shadow-sm border border-zinc-200/60 bg-zinc-50" alt="${recipe.title}">
 
                     <div class="mb-8 bg-zinc-50 border border-zinc-200/60 rounded-2xl p-5 shadow-inner">
                         <h3 class="text-[11px] font-black tracking-widest uppercase text-emerald-800 mb-3">Ingredients</h3>
