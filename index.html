@@ -4,6 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bushmans Cookbook</title>
+    
+    <!-- PWA Manifest & Android Color -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#064e3b">
+    
+    <!-- iOS / Apple Setup -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Cookbook">
+    <link rel="apple-touch-icon" href="bushmans-cookbook-icon.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .checklist-content {
@@ -315,6 +326,13 @@
         }
 
         loadRecipesFromFolder();
+
+        // Register Service Worker for PWA Installation
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').then(() => {
+                console.log("Service Worker Registered");
+            });
+        }
     </script>
 </body>
 </html>
