@@ -1,0 +1,16 @@
+{
+  "name": "Bushmans Cookbook",
+  "short_name": "Cookbook",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#064e3b",
+  "icons": [
+    {
+      "src": "bushmans-cookbook-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
